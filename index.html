@@ -1,0 +1,1121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Local Tour Guide - Ironwood Edition v4</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Arial:wght@700&family=Montserrat:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+        crossorigin=""/>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script> <style>
+        :root {
+            --primary-bg: #fdfaf6; 
+            --secondary-bg: #ffffff; 
+            --text-color: #2c2c2c; 
+            --text-secondary-color: #5a5a5a; 
+            --accent-color-main: #F95301; 
+            --accent-color-light: #FA7F01; 
+            --border-color: #e8e0d4; 
+            --shadow-color: rgba(0, 0, 0, 0.08); 
+            --success-color: #228B22; 
+            --error-color: #D22B2B;   
+            --info-color: #007BFF;    
+
+            --font-heading: 'Arial', sans-serif;
+            --font-body: 'Montserrat', sans-serif;
+
+            --border-radius-main: 10px;
+            --border-radius-small: 6px;
+        }
+
+        /* Scrollbar Styling - Light Mode */
+        ::-webkit-scrollbar { width: 10px; height: 10px; }
+        ::-webkit-scrollbar-track { background: #f0e9e0; border-radius: 5px; }
+        ::-webkit-scrollbar-thumb { background: linear-gradient(var(--accent-color-main), var(--accent-color-light)); border-radius: 5px; border: 2px solid #f0e9e0; }
+        ::-webkit-scrollbar-thumb:hover { background: linear-gradient(var(--accent-color-light), var(--accent-color-main)); }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            font-family: var(--font-body);
+            background-color: var(--primary-bg);
+            color: var(--text-color);
+            line-height: 1.65; 
+            -webkit-font-smoothing: antialiased;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .container { display: flex; flex-direction: column; flex-grow: 1; }
+
+        header {
+            padding: 15px 25px; 
+            background-color: var(--secondary-bg);
+            box-shadow: 0 2px 6px var(--shadow-color);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .header-content { display: flex; justify-content: space-between; align-items: center; max-width: 1800px; margin: 0 auto; }
+        h1 { font-family: var(--font-heading); font-weight: 700; font-size: 2rem; color: var(--accent-color-main); }
+        h2 { font-family: var(--font-heading); font-weight: 700; color: var(--accent-color-main); margin-bottom: 18px; font-size: 1.6rem; padding-bottom: 5px; border-bottom: 2px solid var(--accent-color-light); }
+        h3 { font-family: var(--font-heading); font-weight: 700; color: var(--accent-color-light); margin-bottom: 12px; font-size: 1.3rem; }
+
+        main {
+            flex-grow: 1;
+            display: flex;
+            max-width: 1800px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 25px; 
+            gap: 0; 
+            position: relative; 
+        }
+
+        .map-column {
+            width: 60%; 
+            min-width: 300px;
+            height: calc(100vh - 70px - 50px); 
+            position: sticky;
+            top: calc(70px + 25px); 
+            background-color: var(--secondary-bg);
+            border-radius: var(--border-radius-main);
+            box-shadow: 0 3px 8px var(--shadow-color);
+            overflow: hidden;
+        }
+        #map { height: 100%; width: 100%; }
+
+        .splitter {
+            width: 8px;
+            background-color: var(--primary-bg); 
+            cursor: col-resize;
+            z-index: 100; 
+            height: calc(100vh - 70px - 50px);
+            position: sticky;
+            top: calc(70px + 25px);
+            display: flex; 
+            align-items: center;
+            justify-content: center;
+        }
+        .splitter::after { 
+            content: '⋮';
+            color: var(--text-secondary-color);
+            font-size: 1.5rem;
+            line-height: 1;
+        }
+
+
+        .sidebar-column {
+            width: calc(40% - 8px); 
+            max-width: 100%;
+            overflow-y: auto;
+            height: calc(100vh - 70px - 50px); 
+            padding-left: 20px; 
+            padding-right: 12px;
+        }
+        
+        @media (max-width: 1024px) { 
+            main { flex-direction: column; padding: 15px; gap: 15px; }
+            .map-column {
+                width: 100%;
+                height: 45vh; 
+                min-height: 320px; 
+                position: relative;
+                top: 0;
+                margin-bottom: 15px;
+            }
+            .splitter { display: none; } 
+            .sidebar-column {
+                flex: 1;
+                width: 100%;
+                max-width: 100%;
+                height: auto;
+                padding-left: 0; 
+                padding-right: 0;
+            }
+            h1 { font-size: 1.6rem; }
+            h2 { font-size: 1.4rem; }
+            h3 { font-size: 1.1rem; }
+        }
+
+        .controls, .content-panel-card {
+            padding: 20px;
+            background: var(--secondary-bg);
+            border-radius: var(--border-radius-main);
+            margin-bottom: 20px;
+            box-shadow: 0 2px 5px var(--shadow-color);
+        }
+        
+        .location-controls { display: flex; flex-direction: column; gap: 15px; margin-bottom: 20px; }
+        .search-box { display: flex; gap: 10px; width: 100%; }
+        .search-box input { flex: 1; padding: 12px 15px; border: 1px solid var(--border-color); background-color: var(--primary-bg); color: var(--text-color); border-radius: var(--border-radius-small); font-size: 1rem; font-family: var(--font-body); }
+        .search-box input:focus { outline: none; border-color: var(--accent-color-main); box-shadow: 0 0 0 3px rgba(249, 83, 1, 0.25); }
+        .search-box button { font-size: 1.2rem; }
+
+        .instruction-text { color: var(--text-secondary-color); font-size: 0.9rem; text-align: center; padding: 10px; background-color: #fffaf0; border-radius: var(--border-radius-small); margin-bottom: 12px; border: 1px solid var(--border-color); }
+
+        .radius-control { display: flex; flex-direction: column; gap: 10px; background: var(--primary-bg); padding: 15px; border-radius: var(--border-radius-small); border: 1px solid var(--border-color); }
+        .radius-control label { color: var(--text-secondary-color); font-size: 0.9rem; font-weight: 500; }
+        .radius-slider { -webkit-appearance: none; width: 100%; height: 8px; border-radius: 4px; background: var(--border-color); outline: none; cursor: pointer; }
+        .radius-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 20px; height: 20px; border-radius: 50%; background: var(--accent-color-main); border: 3px solid var(--secondary-bg); box-shadow: 0 1px 4px rgba(0,0,0,0.25); }
+        .radius-slider::-moz-range-thumb { width: 20px; height: 20px; border-radius: 50%; background: var(--accent-color-main); cursor: pointer; border: 3px solid var(--secondary-bg); box-shadow: 0 1px 4px rgba(0,0,0,0.25); }
+        .radius-value { text-align: center; font-size: 0.9rem; color: var(--text-color); margin-top: 8px; font-weight: 500;}
+
+        .image-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px; padding: 12px; background: var(--primary-bg); border-radius: var(--border-radius-small); margin-top: 18px; border: 1px solid var(--border-color); }
+        .gallery-item { position: relative; padding-bottom: 100%; border-radius: var(--border-radius-small); overflow: hidden; background: var(--border-color); box-shadow: 0 1px 2px var(--shadow-color); }
+        .gallery-item img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s ease, filter 0.3s ease; }
+        .gallery-item:hover img { transform: scale(1.08); filter: brightness(1.1); }
+
+        .wiki-item { background: var(--primary-bg); padding: 15px; border-radius: var(--border-radius-small); margin-bottom: 12px; border-left: 5px solid var(--accent-color-light); transition: box-shadow 0.3s ease, transform 0.2s ease; }
+        .wiki-item:hover { box-shadow: 0 4px 10px var(--shadow-color); transform: translateY(-2px); }
+        .wiki-item p { font-size: 0.9rem; margin-bottom: 8px; color: var(--text-secondary-color); }
+        .wiki-item a { color: var(--accent-color-main); text-decoration: none; font-size: 0.9rem; font-weight: 600; }
+        .wiki-item a:hover { text-decoration: underline; color: var(--accent-color-light); }
+
+        .tour-settings { background: var(--primary-bg); padding: 18px; border-radius: var(--border-radius-small); margin-bottom: 18px; border: 1px solid var(--border-color); }
+        .setting-group { margin-bottom: 18px; }
+        .setting-group:last-child { margin-bottom: 0; }
+        .setting-group label { display: block; color: var(--text-secondary-color); margin-bottom: 8px; font-size: 0.95rem; font-weight: 600; }
+        .setting-group select, .custom-prompt { width: 100%; padding: 12px; background: var(--secondary-bg); color: var(--text-color); border: 1px solid var(--border-color); border-radius: var(--border-radius-small); font-size: 1rem; font-family: var(--font-body); }
+        .setting-group select { cursor: pointer; -webkit-appearance: none; appearance: none; background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23333333' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: right 12px center; background-size: 18px; padding-right: 40px; }
+        .setting-group select:focus, .custom-prompt:focus { outline: none; border-color: var(--accent-color-main); box-shadow: 0 0 0 3px rgba(249, 83, 1, 0.25); }
+        .custom-prompt { min-height: 80px; resize: vertical; }
+        .voice-options { display:flex; gap: 10px; align-items:center; margin-top: 10px; }
+        .voice-options button { flex:1; padding: 8px 10px; font-size:0.9rem; background-color: var(--secondary-bg); color:var(--text-secondary-color); border:1px solid var(--border-color); border-radius:var(--border-radius-small); cursor:pointer; transition: background-color 0.2s, border-color 0.2s; }
+        .voice-options button.selected { background-color: var(--accent-color-light); color:white; border-color: var(--accent-color-main); font-weight:600; }
+        .voice-options button:hover:not(.selected) { background-color: #f0e9e0; }
+
+
+        #tourContentDivEl { margin: 18px 0; padding: 18px; background-color: var(--primary-bg); border-radius: var(--border-radius-small); min-height: 120px; font-size: 0.95rem; line-height: 1.75; white-space: pre-wrap; border: 1px solid var(--border-color); max-height: 300px; overflow-y: auto;}
+        .keyframe-text-highlight { background-color: rgba(250, 177, 113, 0.4); padding: 3px 0; border-radius:3px; font-weight: 500;}
+
+        .audio-player { display: flex; flex-direction: column; gap: 12px; padding: 18px; background: var(--primary-bg); border-radius: var(--border-radius-small); margin: 18px 0; border: 1px solid var(--border-color); }
+        .audio-controls { display: flex; align-items: center; gap: 12px; }
+        .audio-progress { flex: 1; height: 10px; background: var(--border-color); border-radius: 5px; overflow: hidden; cursor: pointer; }
+        .audio-progress-bar { height: 100%; background: var(--accent-color-main); width: 0; transition: width 0.1s linear; border-radius: 5px; }
+        .audio-time { font-size: 0.85rem; color: var(--text-secondary-color); min-width: 50px; text-align: center; font-variant-numeric: tabular-nums; }
+        #exportAudioBtnEl { margin-top: 10px; } 
+
+
+        .button-container { display: flex; flex-direction: column; gap: 12px; margin-top: 18px; }
+        .primary-btn, .secondary-btn, .settings-btn {
+            font-family: var(--font-body); font-weight: 600; 
+            background-color: var(--accent-color-main); color: white;
+            border: none; padding: 14px 20px; 
+            border-radius: var(--border-radius-small); cursor: pointer;
+            font-size: 1rem; transition: background-color 0.2s ease, box-shadow 0.2s ease, transform 0.1s ease;
+            width: 100%; text-align: center; -webkit-appearance: none;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.12);
+        }
+        .primary-btn:hover, .secondary-btn:hover { background-color: var(--accent-color-light); box-shadow: 0 4px 8px rgba(0,0,0,0.18); }
+        .primary-btn:active, .secondary-btn:active { background-color: #D64500; transform: translateY(1px); box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        
+        .secondary-btn { background-color: var(--secondary-bg); color: var(--accent-color-main); border: 2px solid var(--accent-color-main); }
+        .secondary-btn:hover { background-color: #fff7f0; border-color: var(--accent-color-light); } 
+        
+        .settings-btn { width: auto; padding: 10px 14px; font-size: 1.4rem; background-color: transparent; border: none; color: var(--accent-color-main); box-shadow: none;}
+        .settings-btn:hover { background-color: rgba(249, 83, 1, 0.08); }
+
+        .primary-btn:disabled, .secondary-btn:disabled { opacity: 0.5; cursor: not-allowed; background-color: #d4d4d4; border-color: #d4d4d4 !important; color: #777777 !important; box-shadow: none; }
+        .primary-btn.loading-spinner, .secondary-btn.loading-spinner { position: relative; }
+        .primary-btn.loading-spinner span, .secondary-btn.loading-spinner span { margin-left: 28px; }
+
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(40, 40, 40, 0.7); z-index: 2000; backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); }
+        .modal-content { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: var(--secondary-bg); padding: 30px; border-radius: var(--border-radius-main); width: 90%; max-width: 480px; box-shadow: 0 8px 25px rgba(0,0,0,0.2); }
+        .input-group { margin-bottom: 20px; }
+        .input-group label { display: block; margin-bottom: 8px; color: var(--text-secondary-color); font-size: 0.95rem; font-weight: 500;}
+        .input-group input { width: 100%; padding: 12px; background-color: var(--primary-bg); border: 1px solid var(--border-color); color: var(--text-color); border-radius: var(--border-radius-small); font-size: 1rem; -webkit-appearance: none; }
+        .input-group input:focus { outline: none; border-color: var(--accent-color-main); box-shadow: 0 0 0 3px rgba(249, 83, 1, 0.25); }
+
+        .loading-spinner::before { content: ''; position: absolute; left: 18px; top: 50%; width: 18px; height: 18px; margin-top: -9px; border: 3px solid var(--accent-color-main); border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .message-area { margin-bottom: 15px; }
+        .message-box { padding: 12px 18px; border-radius: var(--border-radius-small); margin-bottom:12px; border-left-width: 5px; border-left-style: solid; font-size: 0.95rem; box-shadow: 0 1px 3px var(--shadow-color); }
+        .error-message { color: var(--error-color); background: rgba(220, 53, 69, 0.08); border-left-color: var(--error-color); }
+        .info-message { color: var(--info-color); background: rgba(23, 162, 184, 0.08); border-left-color: var(--info-color); }
+        .success-message { color: var(--success-color); background: rgba(40, 167, 69, 0.08); border-left-color: var(--success-color); }
+        .loading-text { color: var(--text-secondary-color); font-style: italic; padding: 10px 0; }
+        .audio-generation-progress { margin-top: 10px; font-size: 0.9rem; color: var(--info-color); }
+
+
+        #wikipediaDisplayDivEl { margin-top: 20px; height: 350px; display: none; border: 1px solid var(--border-color); border-radius: var(--border-radius-small); overflow:hidden; }
+        #wikipediaIframeEl { width: 100%; height: 100%; border: none; }
+        #openWikiInNewTabBtnEl { margin-top: 10px; display: none; } 
+
+
+        .animation-controls { margin-top: 15px; display: flex; justify-content: center; gap: 12px; }
+        #stopTourBtnEl { display: none; } 
+        
+        .tour-animation-marker-icon {
+            background-color: var(--accent-color-main);
+            color: white;
+            border-radius: 50%;
+            text-align: center;
+            font-family: var(--font-heading);
+            font-weight: 700;
+            font-size: 1.1rem; 
+            line-height: 30px; 
+            width: 30px;
+            height: 30px;
+            border: 2px solid white;
+            box-shadow: 0 0 10px var(--accent-color-main);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-content">
+                <h1>Local Tour Guide</h1>
+                <button id="showApiKeysBtnEl" class="settings-btn">⚙️</button>
+            </div>
+        </header>
+        
+        <main>
+            <div class="map-column" id="mapColumnEl">
+                <div id="map"></div>
+            </div>
+            <div class="splitter" id="splitterEl"></div>
+            <div class="sidebar-column" id="sidebarColumnEl">
+                <div class="message-area" id="globalMessageAreaEl"></div>
+                <section class="controls">
+                    <div class="location-controls">
+                        <p class="instruction-text">Search for a place or tap the map to start your tour!</p>
+                        <div class="search-box">
+                            <input type="text" id="locationSearchInputEl" placeholder="e.g., Raleigh, NC">
+                            <button id="searchLocationBtnEl" class="primary-btn" style="width: auto;"><span>🔍</span></button>
+                        </div>
+                        <button id="getCurrentLocationBtnEl" class="primary-btn"><span>📍 Use My Location</span></button>
+                    </div>
+                    <div class="radius-control">
+                        <label for="searchRadiusInputEl">Points of Interest Radius</label>
+                        <input type="range" id="searchRadiusInputEl" class="radius-slider" 
+                               min="0.1" max="6.0" step="0.1" value="1.0"> 
+                        <div class="radius-value" id="radiusValueDisplayEl">1.0 miles</div>
+                    </div>
+                </section>
+
+                <div class="content-panel-card" id="wikipediaResultsCard">
+                    <h2>Nearby Points of Interest</h2>
+                    <div id="wikiListDivEl"><p>Select a location to see nearby points of interest.</p></div>
+                    <div class="image-gallery" id="locationGalleryDivEl"></div>
+                </div>
+
+                <div class="content-panel-card" id="tourGuideCard">
+                    <h2>Your AI Local Guide</h2>
+                    <div class="tour-settings">
+                        <div class="setting-group">
+                            <label for="tourLengthSelectEl">Tour Length</label>
+                            <select id="tourLengthSelectEl">
+                                <option value="short">Brief (~300 words)</option>
+                                <option value="medium" selected>Standard (~500 words)</option>
+                                <option value="long">Detailed (~800 words)</option>
+                            </select>
+                        </div>
+                        <div class="setting-group">
+                            <label for="voiceSelectEl">Voice Selection</label>
+                            <div class="voice-options" id="voiceSelectEl">
+                                <button data-voice="alloy" class="selected">♀️ Alloy (Default)</button>
+                                <button data-voice="ballad">🍵 Ballad (British)</button>
+                                <button data-voice="onyx">♂️ Onyx (Male)</button>
+                            </div>
+                        </div>
+                        <div class="setting-group">
+                            <label for="customPromptTextareaEl">Custom Instructions (e.g., focus on specific themes, tone)</label>
+                            <textarea id="customPromptTextareaEl" class="custom-prompt"
+                                placeholder="Example: Make it humorous and focus on food spots."></textarea>
+                        </div>
+                    </div>
+                    <div id="tourContentDivEl"><p>Your generated tour script will appear here.</p></div>
+                    <div id="audioGenerationProgressEl" class="audio-generation-progress"></div>
+                    <div class="audio-player">
+                        <div class="audio-controls">
+                            <span class="audio-time current-time" id="currentTimeDisplaySpanEl">0:00</span>
+                            <div class="audio-progress" id="audioProgressDivEl">
+                                <div class="audio-progress-bar" id="audioProgressBarDivEl"></div>
+                            </div>
+                            <span class="audio-time duration" id="durationDisplaySpanEl">0:00</span>
+                        </div>
+                        <button id="exportAudioBtnEl" class="secondary-btn" disabled><span>Export Full Tour Audio (ZIP)</span></button>
+                    </div>
+                    <div class="button-container">
+                        <button id="generateTourBtnEl" class="primary-btn" disabled><span>Create Tour Script</span></button>
+                        <button id="startTourBtnEl" class="primary-btn" disabled><span>▶️ Start Guided Tour</span></button>
+                        <button id="stopTourBtnEl" class="secondary-btn"><span>⏹️ Stop Tour</span></button>
+                    </div>
+                </div>
+                
+                <div class="content-panel-card" id="wikipediaDisplayDivEl">
+                    <h3>Wikipedia Information</h3>
+                    <iframe id="wikipediaIframeEl" src="about:blank" title="Wikipedia Content"></iframe>
+                    <button id="openWikiInNewTabBtnEl" class="secondary-btn"><span>Open Wikipedia in New Tab ↗️</span></button>
+                </div>
+            </div>
+        </main>
+
+        <div id="apiKeyModalEl" class="modal">
+            <div class="modal-content">
+                <h2>API Settings</h2>
+                <div class="input-group">
+                    <label for="openaiApiKeyInputEl">OpenAI API Key:</label>
+                    <input type="password" id="openaiApiKeyInputEl" placeholder="sk-...">
+                </div>
+                <div class="button-container">
+                    <button id="saveApiKeysBtnEl" class="primary-btn">Save</button>
+                    <button id="closeModalBtnEl" class="secondary-btn">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+        crossorigin=""></script>
+    <script>
+// --- Global State & Configuration ---
+let openaiApiKey = localStorage.getItem('openaiApiKey') || '';
+const MAX_POIS_FOR_TOUR = 5; 
+const WIKIPEDIA_API_LIMIT = 10; 
+
+// --- DOM Elements ---
+const apiKeyModalEl = document.getElementById('apiKeyModalEl');
+const showApiKeysBtnEl = document.getElementById('showApiKeysBtnEl');
+const saveApiKeysBtnEl = document.getElementById('saveApiKeysBtnEl');
+const closeModalBtnEl = document.getElementById('closeModalBtnEl');
+const openaiApiKeyInputEl = document.getElementById('openaiApiKeyInputEl');
+
+const locationSearchInputEl = document.getElementById('locationSearchInputEl');
+const searchLocationBtnEl = document.getElementById('searchLocationBtnEl');
+const getCurrentLocationBtnEl = document.getElementById('getCurrentLocationBtnEl');
+const searchRadiusInputEl = document.getElementById('searchRadiusInputEl');
+const radiusValueDisplayEl = document.getElementById('radiusValueDisplayEl');
+
+const wikiListDivEl = document.getElementById('wikiListDivEl');
+const locationGalleryDivEl = document.getElementById('locationGalleryDivEl');
+
+const generateTourBtnEl = document.getElementById('generateTourBtnEl');
+const tourLengthSelectEl = document.getElementById('tourLengthSelectEl');
+const voiceSelectContainerEl = document.getElementById('voiceSelectEl'); // Voice options container
+const customPromptTextareaEl = document.getElementById('customPromptTextareaEl');
+const tourContentDivEl = document.getElementById('tourContentDivEl');
+
+const audioGenerationProgressEl = document.getElementById('audioGenerationProgressEl');
+const audioProgressDivEl = document.getElementById('audioProgressDivEl');
+const audioProgressBarDivEl = document.getElementById('audioProgressBarDivEl');
+const currentTimeDisplaySpanEl = document.getElementById('currentTimeDisplaySpanEl');
+const durationDisplaySpanEl = document.getElementById('durationDisplaySpanEl');
+const exportAudioBtnEl = document.getElementById('exportAudioBtnEl');
+const startTourBtnEl = document.getElementById('startTourBtnEl');
+const stopTourBtnEl = document.getElementById('stopTourBtnEl');
+
+const wikipediaDisplayDivEl = document.getElementById('wikipediaDisplayDivEl');
+const wikipediaIframeEl = document.getElementById('wikipediaIframeEl');
+const openWikiInNewTabBtnEl = document.getElementById('openWikiInNewTabBtnEl');
+const globalMessageAreaEl = document.getElementById('globalMessageAreaEl');
+
+const mapColumnEl = document.getElementById('mapColumnEl');
+const sidebarColumnEl = document.getElementById('sidebarColumnEl');
+const splitterEl = document.getElementById('splitterEl');
+
+
+// --- Leaflet Map Variables ---
+let map;
+let currentMapMarker;
+let animationPathMarkers = [];
+let animationPathPolylines = [];
+
+// --- Tour State Variables ---
+let currentSelectedCoords; 
+let nearbyPoiCache = []; 
+let articleImageCache = new Map(); 
+let tourKeyframes = []; 
+let currentTourSegmentIndex = -1;
+let tourAudioSegmentsData = []; // Stores {blob, audioObject} for each segment
+let isTourPlaying = false;
+let currentPlayingAudio = null;
+let selectedVoice = 'alloy'; // Default voice
+
+
+// --- Initialization ---
+document.addEventListener('DOMContentLoaded', () => {
+    initializeMap();
+    openaiApiKeyInputEl.value = openaiApiKey;
+    updateUIAfterLocationChange(); 
+    stopTourBtnEl.style.display = 'none'; 
+    exportAudioBtnEl.disabled = true;
+    setupSplitter();
+    setupVoiceSelection();
+});
+
+// --- Resizable Splitter ---
+function setupSplitter() {
+    let isResizing = false;
+    splitterEl.addEventListener('mousedown', (e) => {
+        isResizing = true;
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+        document.body.style.webkitUserSelect = 'none'; 
+    });
+
+    document.addEventListener('mousemove', (e) => {
+        if (!isResizing) return;
+        const mainRect = document.querySelector('main').getBoundingClientRect();
+        let newMapWidth = e.clientX - mainRect.left;
+        let newSidebarWidth = mainRect.width - newMapWidth - splitterEl.offsetWidth;
+        const minWidth = 250; 
+        if (newMapWidth < minWidth) newMapWidth = minWidth;
+        if (newSidebarWidth < minWidth) {
+            newSidebarWidth = minWidth;
+            newMapWidth = mainRect.width - newSidebarWidth - splitterEl.offsetWidth;
+        }
+        mapColumnEl.style.width = `${newMapWidth}px`;
+        sidebarColumnEl.style.width = `${newSidebarWidth}px`;
+        if (map) map.invalidateSize(); 
+    });
+
+    document.addEventListener('mouseup', () => {
+        if (isResizing) {
+            isResizing = false;
+            document.body.style.cursor = 'default';
+            document.body.style.userSelect = '';
+            document.body.style.webkitUserSelect = '';
+        }
+    });
+}
+
+// --- Voice Selection ---
+function setupVoiceSelection() {
+    voiceSelectContainerEl.addEventListener('click', (event) => {
+        if (event.target.tagName === 'BUTTON') {
+            voiceSelectContainerEl.querySelectorAll('button').forEach(btn => btn.classList.remove('selected'));
+            event.target.classList.add('selected');
+            selectedVoice = event.target.dataset.voice;
+            console.log("Selected voice:", selectedVoice);
+        }
+    });
+}
+
+
+// --- Modal & API Key Management ---
+showApiKeysBtnEl.addEventListener('click', () => { apiKeyModalEl.style.display = 'block'; });
+closeModalBtnEl.addEventListener('click', () => { apiKeyModalEl.style.display = 'none'; });
+window.addEventListener('click', (e) => { if (e.target === apiKeyModalEl) apiKeyModalEl.style.display = 'none'; });
+saveApiKeysBtnEl.addEventListener('click', () => {
+    const newKey = openaiApiKeyInputEl.value.trim();
+    if (newKey) {
+        localStorage.setItem('openaiApiKey', newKey);
+        openaiApiKey = newKey;
+        displayMessage('API Key saved.', 'success');
+        apiKeyModalEl.style.display = 'none';
+    } else {
+        displayMessage('API Key cannot be empty.', 'error', apiKeyModalEl.querySelector('.modal-content'));
+    }
+});
+
+// --- Map & Location ---
+function initializeMap() {
+    map = L.map('map', { center: [35.7796, -78.6382], zoom: 12, zoomControl: true, tap: true });
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        maxZoom: 19
+    }).addTo(map);
+
+    map.on('click', handleMapClick);
+    searchLocationBtnEl.addEventListener('click', handleLocationSearch);
+    locationSearchInputEl.addEventListener('keypress', (e) => { if (e.key === 'Enter') handleLocationSearch(); });
+    getCurrentLocationBtnEl.addEventListener('click', handleCurrentLocationRequest);
+    searchRadiusInputEl.addEventListener('input', () => {
+        radiusValueDisplayEl.textContent = `${parseFloat(searchRadiusInputEl.value).toFixed(1)} miles`;
+        if (currentSelectedCoords) fetchPointsOfInterest();
+    });
+}
+
+function handleMapClick(event) {
+    currentSelectedCoords = { lat: event.latlng.lat, lng: event.latlng.lng };
+    updateMapMarkerAndFocus();
+    fetchPointsOfInterest();
+}
+
+async function handleLocationSearch() {
+    const query = locationSearchInputEl.value.trim();
+    if (!query) return;
+    setButtonLoadingState(searchLocationBtnEl, true);
+    try {
+        const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`);
+        const data = await response.json();
+        if (data && data.length > 0) {
+            currentSelectedCoords = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+            updateMapMarkerAndFocus();
+            await fetchPointsOfInterest();
+        } else {
+            displayMessage('Location not found.', 'info');
+        }
+    } catch (error) {
+        displayMessage('Error searching location.', 'error'); console.error(error);
+    } finally {
+        setButtonLoadingState(searchLocationBtnEl, false);
+    }
+}
+
+function handleCurrentLocationRequest() {
+    if (!navigator.geolocation) { displayMessage('Geolocation is not supported.', 'error'); return; }
+    setButtonLoadingState(getCurrentLocationBtnEl, true);
+    navigator.geolocation.getCurrentPosition(
+        (position) => {
+            currentSelectedCoords = { lat: position.coords.latitude, lng: position.coords.longitude };
+            updateMapMarkerAndFocus();
+            fetchPointsOfInterest();
+            setButtonLoadingState(getCurrentLocationBtnEl, false);
+        },
+        (error) => {
+            displayMessage(`Geolocation error: ${error.message}`, 'error'); console.error(error);
+            setButtonLoadingState(getCurrentLocationBtnEl, false);
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+}
+
+function updateMapMarkerAndFocus() {
+    if (currentMapMarker) map.removeLayer(currentMapMarker);
+    currentMapMarker = L.marker([currentSelectedCoords.lat, currentSelectedCoords.lng]).addTo(map);
+    map.setView([currentSelectedCoords.lat, currentSelectedCoords.lng], 15);
+    updateUIAfterLocationChange();
+}
+
+function updateUIAfterLocationChange() {
+    wikiListDivEl.innerHTML = '<p>Select a location to see nearby POIs.</p>';
+    locationGalleryDivEl.innerHTML = '';
+    tourContentDivEl.innerHTML = '<p>Your tour script will appear here.</p>';
+    disableTourControls(true);
+    clearMapAnimationArtifacts();
+    wikipediaDisplayDivEl.style.display = 'none';
+    openWikiInNewTabBtnEl.style.display = 'none';
+    stopTourBtnEl.style.display = 'none';
+    startTourBtnEl.querySelector('span').textContent = '▶️ Start Guided Tour';
+    isTourPlaying = false;
+    currentTourSegmentIndex = -1;
+    exportAudioBtnEl.disabled = true;
+    audioGenerationProgressEl.textContent = '';
+}
+
+// --- Points of Interest (Wikipedia) ---
+async function fetchPointsOfInterest() {
+    if (!currentSelectedCoords) return;
+    wikiListDivEl.innerHTML = '<p class="loading-text">Finding POIs...</p>';
+    locationGalleryDivEl.innerHTML = '';
+    articleImageCache.clear();
+    disableTourControls(true);
+
+    const radiusMeters = Math.round(parseFloat(searchRadiusInputEl.value) * 1609.34);
+    const url = `https://en.wikipedia.org/w/api.php?action=query&list=geosearch&gsradius=${radiusMeters}&gscoord=${currentSelectedCoords.lat}|${currentSelectedCoords.lng}&gslimit=${WIKIPEDIA_API_LIMIT}&format=json&origin=*`;
+
+    try {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`Wikipedia API error: ${response.status}`);
+        const data = await response.json();
+        nearbyPoiCache = (data.query?.geosearch || []).map(poi => ({ ...poi, lat: parseFloat(poi.lat), lon: parseFloat(poi.lon) }));
+
+        if (nearbyPoiCache.length === 0) {
+            displayMessage(`No POIs found within ${searchRadiusInputEl.value} miles.`, 'info');
+            wikiListDivEl.innerHTML = `<p>No POIs found. Try a wider radius or different location.</p>`;
+            return;
+        }
+        renderPoiList();
+        await fetchPoiImages();
+        generateTourBtnEl.disabled = false;
+    } catch (error) {
+        displayMessage(`Error fetching POIs: ${error.message}`, 'error'); console.error(error);
+        wikiListDivEl.innerHTML = `<p class="error-text">Could not fetch POIs.</p>`;
+    }
+}
+
+function renderPoiList() {
+    wikiListDivEl.innerHTML = nearbyPoiCache.map(poi => `
+        <div class="wiki-item" data-pageid="${poi.pageid}">
+            <h3>${poi.title}</h3>
+            <p>Distance: ${(poi.dist / 1609.34).toFixed(2)} miles</p>
+            <a href="https://en.wikipedia.org/?curid=${poi.pageid}" target="_blank" rel="noopener noreferrer">Read More</a>
+        </div>
+    `).join('');
+}
+
+async function fetchPoiImages() {
+    const imagePromises = nearbyPoiCache.slice(0, 5).map(async (poi) => {
+        const url = `https://en.wikipedia.org/w/api.php?action=query&prop=pageimages&format=json&pithumbsize=200&pageids=${poi.pageid}&origin=*`;
+        try {
+            const response = await fetch(url);
+            const data = await response.json();
+            const page = data.query?.pages?.[poi.pageid];
+            if (page?.thumbnail?.source) {
+                articleImageCache.set(poi.pageid, page.thumbnail.source);
+                addPoiImageToGallery(page.thumbnail.source, poi.title);
+            }
+        } catch (error) { console.error(`Error fetching image for ${poi.title}:`, error); }
+    });
+    await Promise.all(imagePromises);
+}
+
+function addPoiImageToGallery(src, alt) {
+    const item = document.createElement('div');
+    item.className = 'gallery-item';
+    item.innerHTML = `<img src="${src}" alt="${alt}" loading="lazy">`;
+    locationGalleryDivEl.appendChild(item);
+}
+
+// --- Tour Script Generation & Keyframe Parsing ---
+generateTourBtnEl.addEventListener('click', async () => {
+    if (!openaiApiKey) { displayMessage('OpenAI API Key is not set.', 'error'); return; }
+    if (nearbyPoiCache.length === 0) { displayMessage('No POIs to create a tour from.', 'info'); return; }
+
+    setButtonLoadingState(generateTourBtnEl, true);
+    disableTourControls(true);
+    tourContentDivEl.innerHTML = '<p class="loading-text">Crafting your tour script with keyframes...</p>';
+    clearMapAnimationArtifacts();
+    audioGenerationProgressEl.textContent = '';
+
+
+    const poisForScript = nearbyPoiCache.slice(0, MAX_POIS_FOR_TOUR);
+    const poiDetailsForPrompt = poisForScript.map(p => `${p.title} (PAGEID:${p.pageid}, LAT:${p.lat.toFixed(6)}, LNG:${p.lon.toFixed(6)})`).join('; ');
+
+    const prompt = `You are an engaging local tour guide. Create an audio tour script.
+The tour should cover these points of interest: ${poiDetailsForPrompt}.
+Tour Length: ${tourLengthSelectEl.value} (short: ~300 words, medium: ~500 words, long: ~800 words).
+Adopt a tone that is engaging, friendly, and informative, like a knowledgeable local sharing insights. Avoid overly formal language, clichés, or robotic phrasing. Strive for a conversational and human-like quality in the narration. Be concise and get to the point, but without sacrificing interesting details. Do not use phrases like "As an AI language model...", "Let's delve into...", "It's worth noting that...". Speak directly and naturally.
+${customPromptTextareaEl.value.trim() ? `User's custom instructions: "${customPromptTextareaEl.value.trim()}".\n` : ''}
+IMPORTANT: For each point of interest, just before you start describing it, you MUST embed a keyframe tag in the script. The tag format is EXACTLY: [KEYFRAME: Exact POI Title - PAGEID:ItsPageID - LAT:ItsLatitude - LNG:ItsLongitude]. Use the precise titles, PAGEIDs, LATs, and LNGs provided above for each POI.
+Weave the POIs into a coherent narrative. Provide interesting facts, history, or anecdotes. Make it sound natural for spoken delivery. Do not use markdown formatting (like #, *, or lists) in your response. Start the tour with a general introduction if appropriate, before the first keyframe. Ensure the keyframe tags are on their own line for easier parsing, if possible.`;
+
+    try {
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${openaiApiKey}` },
+            body: JSON.stringify({ model: 'gpt-4.1-mini', messages: [{role: 'system', content: 'You are a tour guide scriptwriter who embeds specific keyframe tags and writes in a natural, engaging, human-like tone.'}, {role: 'user', content: prompt }], temperature: 0.75 })
+        });
+        if (!response.ok) { const errText = await response.text(); throw new Error(`Chat API error: ${response.status} - ${errText}`); }
+        const data = await response.json();
+        const script = data.choices[0]?.message?.content;
+        if (!script) throw new Error('Empty script from Chat API.');
+        
+        await parseScriptAndPrepareAudioSegments(script);
+    } catch (error) {
+        displayMessage(`Tour script generation failed: ${error.message}`, 'error'); console.error(error);
+        tourContentDivEl.textContent = 'Failed to generate tour script.';
+        setButtonLoadingState(generateTourBtnEl, false);
+        generateTourBtnEl.disabled = nearbyPoiCache.length === 0;
+    }
+});
+
+async function parseScriptAndPrepareAudioSegments(fullScript) {
+    tourKeyframes = [];
+    const keyframeRegex = /\[KEYFRAME:\s*([^\]]+?)\s*-\s*PAGEID:\s*(\d+)\s*-\s*LAT:\s*(-?\d+\.?\d*)\s*-\s*LNG:\s*(-?\d+\.?\d*)\]/g;
+    let lastIndex = 0;
+    let segmentIndex = 0;
+    let scriptForDisplay = "";
+    let matches = Array.from(fullScript.matchAll(keyframeRegex));
+
+    if (matches.length > 0) {
+        const firstMatchInfo = matches[0];
+        const introText = fullScript.substring(0, firstMatchInfo.index).trim();
+        if (introText) {
+            tourKeyframes.push({ title: "Introduction", textToSpeak: introText, isIntro: true, segmentIndex: segmentIndex++ });
+            scriptForDisplay += introText + "\n\n";
+        }
+    } else { 
+        if (fullScript.trim()) {
+            tourKeyframes.push({ title: "Full Tour", textToSpeak: fullScript.trim(), isIntro: true, segmentIndex: segmentIndex++ });
+            scriptForDisplay = fullScript.trim();
+        }
+    }
+    
+    for (let i = 0; i < matches.length; i++) {
+        const matchInfo = matches[i];
+        const title = matchInfo[1].trim();
+        const pageid = parseInt(matchInfo[2]);
+        const lat = parseFloat(matchInfo[3]);
+        const lng = parseFloat(matchInfo[4]);
+
+        let textForKeyframe;
+        const startOfText = matchInfo.index + matchInfo[0].length;
+        if (i < matches.length - 1) { 
+            textForKeyframe = fullScript.substring(startOfText, matches[i+1].index).trim();
+        } else { 
+            textForKeyframe = fullScript.substring(startOfText).trim();
+        }
+        
+        if (textForKeyframe) { 
+            tourKeyframes.push({ title, pageid, lat, lng, textToSpeak: textForKeyframe, isIntro: false, segmentIndex: segmentIndex++ });
+            scriptForDisplay += `📍 ${title}\n${textForKeyframe}\n\n`;
+        }
+    }
+    
+    tourContentDivEl.textContent = scriptForDisplay.trim() || "Script parsed. No displayable content (check keyframes).";
+    console.log("Parsed Keyframes:", tourKeyframes);
+
+    if (tourKeyframes.length > 0) {
+        displayMessage('Script parsed. Generating audio for segments...', 'info');
+        await generateAudioForSegments(); 
+    } else {
+        displayMessage('No keyframes or text content found. Cannot generate audio.', 'info');
+        setButtonLoadingState(generateTourBtnEl, false);
+        generateTourBtnEl.disabled = nearbyPoiCache.length === 0;
+    }
+}
+
+
+async function generateAudioForSegments() {
+    tourAudioSegmentsData = new Array(tourKeyframes.length).fill(null);
+    let allSegmentsGeneratedSuccessfully = true;
+    let segmentsToGenerate = tourKeyframes.filter(k => k.textToSpeak && k.textToSpeak.trim().length > 5);
+    let segmentsGeneratedCount = 0;
+
+    audioGenerationProgressEl.textContent = `Generating audio 0/${segmentsToGenerate.length}...`;
+    exportAudioBtnEl.disabled = true; // Disable export until all are done
+
+    const generationPromises = [];
+
+    for (let i = 0; i < segmentsToGenerate.length; i++) {
+        const keyframe = segmentsToGenerate[i];
+        const promise = generateSingleAudioSegment(keyframe)
+            .then(audioData => {
+                tourAudioSegmentsData[keyframe.segmentIndex] = audioData; // Store {blob, audioObject}
+                segmentsGeneratedCount++;
+                audioGenerationProgressEl.textContent = `Generated audio ${segmentsGeneratedCount}/${segmentsToGenerate.length}...`;
+                if (i === 0 && audioData.audioObject) { // First segment is ready
+                     if (tourAudioSegmentsData.some(a => a && a.audioObject)) startTourBtnEl.disabled = false;
+                }
+            })
+            .catch(error => {
+                allSegmentsGeneratedSuccessfully = false;
+                segmentsGeneratedCount++; 
+                audioGenerationProgressEl.textContent = `Generated audio ${segmentsGeneratedCount}/${segmentsToGenerate.length} (errors)...`;
+            });
+        generationPromises.push(promise);
+    }
+    
+    await Promise.all(generationPromises); // Wait for all background generations
+
+    setButtonLoadingState(generateTourBtnEl, false); 
+    generateTourBtnEl.disabled = nearbyPoiCache.length === 0; 
+
+    if (segmentsGeneratedCount === segmentsToGenerate.length) {
+        audioGenerationProgressEl.textContent = allSegmentsGeneratedSuccessfully ? 'All audio segments ready!' : 'Some audio segments failed.';
+        if (allSegmentsGeneratedSuccessfully && tourAudioSegmentsData.some(a => a && a.blob)) {
+            exportAudioBtnEl.disabled = false; // Enable export if all successful
+        }
+    }
+
+    if (!tourAudioSegmentsData.some(audio => audio && audio.audioObject) && segmentsToGenerate.length > 0) { 
+        displayMessage('No audio could be generated for the tour segments.', 'error');
+        startTourBtnEl.disabled = true;
+    } else if (!allSegmentsGeneratedSuccessfully && segmentsToGenerate.length > 0) {
+         displayMessage('Some audio segments failed. Tour may be incomplete.', 'info');
+         if (tourAudioSegmentsData.some(a => a && a.audioObject)) startTourBtnEl.disabled = false; // Still enable if some are good
+    }
+}
+
+async function generateSingleAudioSegment(keyframe) {
+    const response = await fetch('https://api.openai.com/v1/audio/speech', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${openaiApiKey}` },
+        body: JSON.stringify({ model: 'gpt-4o-mini-tts', input: keyframe.textToSpeak, voice: selectedVoice, format: 'mp3' })
+    });
+    if (!response.ok) { const errText = await response.text(); throw new Error(`TTS API error for "${keyframe.title}": ${response.status} - ${errText}`); }
+    const audioBlob = await response.blob();
+    if (audioBlob.size === 0) throw new Error(`Empty audio for "${keyframe.title}".`);
+    
+    const audio = new Audio(URL.createObjectURL(audioBlob));
+    audio.preload = "auto";
+    
+    await new Promise((resolve, reject) => { 
+        audio.oncanplaythrough = resolve; 
+        audio.onerror = (e) => reject(new Error(`Error loading audio for ${keyframe.title}: ${e.target.error?.message || 'Unknown audio error'}`));
+    });
+    return { blob: audioBlob, audioObject: audio }; // Return both blob and audio object
+}
+
+
+// --- Tour Playback and Animation ---
+startTourBtnEl.addEventListener('click', () => {
+    if (isTourPlaying) {
+        pauseCurrentTourSegment();
+    } else {
+        if (tourAudioSegmentsData.length === 0 || !tourAudioSegmentsData.some(s => s && s.audioObject)) {
+            displayMessage('No tour audio available to play.', 'info');
+            return;
+        }
+        isTourPlaying = true;
+        startTourBtnEl.querySelector('span').textContent = '⏸️ Pause Tour';
+        stopTourBtnEl.style.display = 'inline-flex';
+        clearMapAnimationArtifacts();
+        
+        if (currentTourSegmentIndex === -1 || currentTourSegmentIndex >= tourKeyframes.length -1) {
+            currentTourSegmentIndex = -1; 
+        }
+        playNextTourSegment();
+    }
+});
+
+stopTourBtnEl.addEventListener('click', stopTourPlaybackAndAnimation);
+
+function playNextTourSegment() {
+    if (!isTourPlaying) return; 
+
+    currentTourSegmentIndex++;
+    if (currentTourSegmentIndex < tourKeyframes.length) {
+        const keyframe = tourKeyframes[currentTourSegmentIndex];
+        const audioData = tourAudioSegmentsData[keyframe.segmentIndex];
+        currentPlayingAudio = audioData ? audioData.audioObject : null;
+        currentPlayingAudioBlob = audioData ? audioData.blob : null; // For single segment export (if re-enabled)
+        
+        exportAudioBtnEl.disabled = true; // Keep full tour export disabled until all are done (handled in generateAudioForSegments)
+
+
+        highlightCurrentTextSegment(keyframe.textToSpeak);
+        if (!keyframe.isIntro) {
+            updateMapForKeyframe(keyframe);
+            updateWikipediaView(keyframe.pageid, keyframe.title);
+        } else { 
+            if (nearbyPoiCache.length > 0) {
+                 const bounds = L.latLngBounds(nearbyPoiCache.map(p => [p.lat, p.lon]));
+                 if (bounds.isValid()) map.fitBounds(bounds, {padding: [40,40]});
+            }
+            wikipediaDisplayDivEl.style.display = 'none';
+            openWikiInNewTabBtnEl.style.display = 'none';
+        }
+
+        if (currentPlayingAudio) {
+            currentPlayingAudio.currentTime = 0;
+            currentPlayingAudio.play().catch(e => { console.error("Error playing segment:", e); displayMessage(`Error playing audio for ${keyframe.title}.`, 'error');});
+            
+            currentPlayingAudio.onloadedmetadata = () => { 
+                 durationDisplaySpanEl.textContent = formatTime(currentPlayingAudio.duration);
+            };
+            currentPlayingAudio.onended = () => { if (isTourPlaying) playNextTourSegment(); };
+            currentPlayingAudio.ontimeupdate = () => {
+                if (!currentPlayingAudio || !currentPlayingAudio.duration) return;
+                audioProgressBarDivEl.style.width = `${(currentPlayingAudio.currentTime / currentPlayingAudio.duration) * 100}%`;
+                currentTimeDisplaySpanEl.textContent = formatTime(currentPlayingAudio.currentTime);
+                if (durationDisplaySpanEl.textContent === "0:00" && currentPlayingAudio.duration) {
+                     durationDisplaySpanEl.textContent = formatTime(currentPlayingAudio.duration);
+                }
+            };
+            if (currentPlayingAudio.duration) { // Initial set if already loaded
+                durationDisplaySpanEl.textContent = formatTime(currentPlayingAudio.duration);
+            } else { // Fallback if duration not immediately available
+                currentTimeDisplaySpanEl.textContent = "0:00";
+                durationDisplaySpanEl.textContent = "Loading...";
+            }
+        } else { 
+            if (isTourPlaying) setTimeout(playNextTourSegment, keyframe.isIntro ? 1500 : 700); 
+        }
+    } else {
+        displayMessage('Guided tour finished!', 'success');
+        stopTourPlaybackAndAnimation(); 
+    }
+}
+
+function pauseCurrentTourSegment() {
+    isTourPlaying = false;
+    if (currentPlayingAudio && !currentPlayingAudio.paused) {
+        currentPlayingAudio.pause();
+    }
+    startTourBtnEl.querySelector('span').textContent = '▶️ Resume Tour';
+}
+
+function stopTourPlaybackAndAnimation() {
+    isTourPlaying = false;
+    if (currentPlayingAudio && !currentPlayingAudio.paused) {
+        currentPlayingAudio.pause();
+        currentPlayingAudio.currentTime = 0;
+    }
+    currentPlayingAudio = null;
+    currentTourSegmentIndex = -1; 
+    startTourBtnEl.querySelector('span').textContent = '▶️ Start Guided Tour';
+    startTourBtnEl.disabled = tourAudioSegmentsData.length === 0 || !tourAudioSegmentsData.some(s => s && s.audioObject);
+    stopTourBtnEl.style.display = 'none';
+    audioProgressBarDivEl.style.width = '0%';
+    currentTimeDisplaySpanEl.textContent = '0:00';
+    highlightCurrentTextSegment(null); 
+    // Check if export should be re-enabled (if all segments were generated)
+    exportAudioBtnEl.disabled = !tourAudioSegmentsData.every(s => s && s.blob);
+}
+
+function updateMapForKeyframe(keyframe) {
+    const icon = L.divIcon({ className: 'tour-animation-marker-icon', html: `<span>${animationPathMarkers.length + 1}</span>`, iconSize: [30, 30], iconAnchor: [15, 15] });
+    const marker = L.marker([keyframe.lat, keyframe.lng], { icon }).addTo(map)
+        .bindPopup(`<b>${animationPathMarkers.length + 1}. ${keyframe.title}</b>`).openPopup();
+    animationPathMarkers.push(marker);
+    map.setView([keyframe.lat, keyframe.lng], 16);
+
+    if (animationPathMarkers.length > 1) {
+        const prevMarkerCoords = animationPathMarkers[animationPathMarkers.length - 2].getLatLng();
+        const line = L.polyline([prevMarkerCoords, [keyframe.lat, keyframe.lng]], 
+            { color: 'var(--accent-color-main)', weight: 4, opacity: 0.8 }).addTo(map);
+        animationPathPolylines.push(line);
+    }
+}
+
+function updateWikipediaView(pageid, title) {
+    if (pageid) {
+        const wikiUrl = `https://en.wikipedia.org/?curid=${pageid}`;
+        wikipediaIframeEl.src = wikiUrl;
+        wikipediaDisplayDivEl.querySelector('h3').textContent = title || "Wikipedia Information";
+        openWikiInNewTabBtnEl.onclick = () => window.open(wikiUrl, '_blank');
+        wikipediaDisplayDivEl.style.display = 'block';
+        openWikiInNewTabBtnEl.style.display = 'inline-flex';
+
+    } else {
+        wikipediaDisplayDivEl.style.display = 'none';
+        openWikiInNewTabBtnEl.style.display = 'none';
+    }
+}
+
+function highlightCurrentTextSegment(segmentTextToHighlight) {
+    const fullCleanedScript = tourContentDivEl.dataset.fullScript || tourContentDivEl.textContent; 
+    if (!tourContentDivEl.dataset.fullScript) tourContentDivEl.dataset.fullScript = fullCleanedScript;
+    
+    tourContentDivEl.innerHTML = ''; 
+
+    if (segmentTextToHighlight === null || segmentTextToHighlight.trim() === "") { 
+        tourContentDivEl.textContent = fullCleanedScript; 
+        return;
+    }
+    
+    const startIndex = fullCleanedScript.indexOf(segmentTextToHighlight);
+
+    if (startIndex !== -1) {
+        const before = fullCleanedScript.substring(0, startIndex);
+        const highlighted = fullCleanedScript.substring(startIndex, startIndex + segmentTextToHighlight.length);
+        const after = fullCleanedScript.substring(startIndex + segmentTextToHighlight.length);
+
+        tourContentDivEl.appendChild(document.createTextNode(before));
+        const span = document.createElement('span');
+        span.className = 'keyframe-text-highlight';
+        span.textContent = highlighted;
+        tourContentDivEl.appendChild(span);
+        tourContentDivEl.appendChild(document.createTextNode(after));
+        
+        span.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+    } else {
+        tourContentDivEl.textContent = fullCleanedScript; 
+        console.warn("Could not find exact segment to highlight:", segmentTextToHighlight);
+    }
+}
+
+exportAudioBtnEl.addEventListener('click', async () => {
+    if (!tourAudioSegmentsData.some(s => s && s.blob)) {
+        displayMessage('No audio segments available to export.', 'info');
+        return;
+    }
+
+    setButtonLoadingState(exportAudioBtnEl, true);
+    displayMessage('Preparing ZIP file for download...', 'info');
+
+    try {
+        const zip = new JSZip();
+        let fileCount = 0;
+        for (let i = 0; i < tourKeyframes.length; i++) {
+            const keyframe = tourKeyframes[i];
+            const audioData = tourAudioSegmentsData[keyframe.segmentIndex];
+            if (audioData && audioData.blob) {
+                fileCount++;
+                const fileName = `${String(fileCount).padStart(2, '0')}_${keyframe.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.mp3`;
+                zip.file(fileName, audioData.blob);
+            }
+        }
+
+        if (fileCount === 0) {
+            displayMessage('No valid audio blobs to zip.', 'info');
+            setButtonLoadingState(exportAudioBtnEl, false);
+            return;
+        }
+
+        const zipBlob = await zip.generateAsync({ type: "blob" });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(zipBlob);
+        link.download = 'tour_audio_segments.zip';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(link.href);
+        displayMessage('Full tour audio ZIP download started.', 'success');
+    } catch (error) {
+        displayMessage('Error creating ZIP file for audio export.', 'error');
+        console.error("Error exporting audio:", error);
+    } finally {
+        setButtonLoadingState(exportAudioBtnEl, false);
+    }
+});
+
+
+function clearMapAnimationArtifacts() {
+    animationPathMarkers.forEach(m => map.removeLayer(m));
+    animationPathPolylines.forEach(p => map.removeLayer(p));
+    animationPathMarkers = [];
+    animationPathPolylines = [];
+}
+
+function disableTourControls(disable = true) {
+    generateTourBtnEl.disabled = disable;
+    startTourBtnEl.disabled = disable;
+    if (disable) {
+        stopTourBtnEl.style.display = 'none';
+        if (currentPlayingAudio && !currentPlayingAudio.paused) {
+            currentPlayingAudio.pause();
+            currentPlayingAudio.currentTime = 0;
+        }
+        currentPlayingAudio = null;
+        isTourPlaying = false;
+        exportAudioBtnEl.disabled = true;
+    }
+}
+
+// --- UI Utility Functions ---
+function setButtonLoadingState(button, isLoading) {
+    const span = button.querySelector('span');
+    const originalText = button.dataset.originalText || (span ? span.textContent : button.textContent);
+    if (!button.dataset.originalText && originalText) button.dataset.originalText = originalText;
+
+    if (isLoading) {
+        button.disabled = true;
+        button.classList.add('loading-spinner'); 
+        if (span) span.textContent = 'Processing...'; else button.textContent = 'Processing...';
+    } else {
+        button.disabled = false;
+        button.classList.remove('loading-spinner');
+        if (span) span.textContent = button.dataset.originalText || 'Default'; else button.textContent = button.dataset.originalText || 'Default';
+    }
+}
+
+function displayMessage(message, type = 'info', parentElement = globalMessageAreaEl) {
+    const id = `msg-${Date.now()}`;
+    const el = document.createElement('div');
+    el.id = id;
+    el.className = `message-box ${type}-message`;
+    el.textContent = message;
+    
+    if (parentElement.firstChild) parentElement.insertBefore(el, parentElement.firstChild);
+    else parentElement.appendChild(el);
+    
+    setTimeout(() => document.getElementById(id)?.remove(), type === 'error' ? 8000 : 6000);
+}
+
+function formatTime(seconds) {
+    if (isNaN(seconds) || seconds === Infinity) return "0:00";
+    const m = Math.floor(seconds / 60);
+    const s = Math.floor(seconds % 60);
+    return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+    </script>
+</body>
+</html>
