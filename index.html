@@ -856,11 +856,18 @@ startTourBtnEl.addEventListener('click', () => {
         startTourBtnEl.querySelector('span').textContent = '⏸️ Pause Tour';
         stopTourBtnEl.style.display = 'inline-flex';
         clearMapAnimationArtifacts();
-        
-        if (currentTourSegmentIndex === -1 || currentTourSegmentIndex >= tourKeyframes.length -1) {
-            currentTourSegmentIndex = -1; 
+        if (currentPlayingAudio && currentTourSegmentIndex >= 0 && currentTourSegmentIndex < tourKeyframes.length) {
+            // Resume the currently paused segment
+            currentPlayingAudio.play().catch(e => {
+                console.error("Error resuming segment:", e);
+                playNextTourSegment();
+            });
+        } else {
+            if (currentTourSegmentIndex === -1 || currentTourSegmentIndex >= tourKeyframes.length - 1) {
+                currentTourSegmentIndex = -1;
+            }
+            playNextTourSegment();
         }
-        playNextTourSegment();
     }
 });
 
